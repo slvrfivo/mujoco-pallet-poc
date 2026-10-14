@@ -38,3 +38,38 @@
 ```powershell
 .\.venv\Scripts\python.exe run_panda.py
 ```
+
+## 2026-10-14 — 2단계: FK(정기구학) 실습
+
+### 오늘의 목표
+- 1단계 결과를 첫 Git 커밋으로 남기기
+- `fk_demo.py`: 관절 일부를 천천히 움직이며 손끝 (x, y, z)를 0.5초마다 출력
+
+### 완료한 작업
+- 첫 커밋 `d3224ed` "Initial MuJoCo Panda simulation" (Panda 모델 폴더 포함)
+  - 모델 출처·원본 커밋·라이선스를 `models/README.md`에 기록, 원본 `LICENSE`는 그대로 유지
+  - 이 저장소에만 Git 사용자 정보 설정 (`git config user.name/user.email`)
+- 모델 구조 확인
+  - 바디 연결: link0 → link1 → … → link7 → hand → left/right_finger
+  - 모델에 손끝 site가 없음 → hand 바디 z축으로 0.1034m 떨어진 점을 손끝(TCP)으로 사용 (원본 XML은 수정하지 않음)
+  - 관절 한계·모터 목표값 범위(ctrlrange) 확인: joint1 ±2.90, joint2 ±1.76, joint4 −3.07~−0.07 rad 등
+- `fk_demo.py` 작성 (`run_panda.py`는 그대로 유지)
+  - home 자세를 중심으로 joint1(±0.6rad, 10초), joint2(±0.3rad, 8초), joint4(±0.4rad, 6초)를 사인파로 왕복
+  - 목표 각도는 관절 한계에서 0.1rad 안쪽으로 잘라서(clip) 사용
+  - `mj_kinematics`로 FK 계산 후 손끝 좌표와 관절 각도를 0.5초(시뮬레이션 시간)마다 출력
+- 테스트 결과
+  - 뷰어 실행: 창이 열리고 좌표가 0.5초마다 출력됨, 오류 없음
+  - 화면 없이 120초 검증: 관절은 실제 한계에서 0.05rad 이상 안쪽 유지, 목표 대비 관절각 오차 최대 0.047rad, 손끝 높이 0.21~0.85m, 충돌 없음
+  - MuJoCo FK 결과를 Franka 공식 DH 파라미터로 직접 계산한 값과 비교: 최대 차이 약 8e-16m (일치)
+  - 자원 사용량: 메모리 약 0.86GB, CPU 약 코어 1개 (1단계와 비슷)
+
+### 아직 하지 않은 것
+- IK
+- 2×2 팔레트, 상자 모델과 적재
+- 적재 위치 결정 알고리즘
+- 작업시간 측정
+
+### 실행 방법
+```powershell
+.\.venv\Scripts\python.exe fk_demo.py
+```
