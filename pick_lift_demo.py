@@ -51,9 +51,9 @@ MAX_SLIP_MM, MAX_SLIP_DEG = 5.0, 5.0   # 손에 대한 상자 위치·방향 변
 FINGER_PAD_INSET = 0.0
 
 
-def build_pick_model():
-    """팔레트 장면(상자 없음) + 공급 받침대 + 집을 상자 1개."""
-    spec = env.build_spec({zone: 0 for zone in env.ZONE_LAYOUT})
+def build_pick_model(pallet_counts=None):
+    """팔레트 장면 + 공급 받침대 + 집을 상자 1개. pallet_counts를 주지 않으면 팔레트는 비어 있음."""
+    spec = env.build_spec(pallet_counts or {zone: 0 for zone in env.ZONE_LAYOUT})
     BOX = mujoco.mjtGeom.mjGEOM_BOX
     spec.worldbody.add_geom(
         name="supply_table", type=BOX,
