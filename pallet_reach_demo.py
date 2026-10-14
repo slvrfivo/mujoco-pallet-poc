@@ -186,6 +186,10 @@ class Runner:
         """0.5초마다 출력하는 줄 끝에 덧붙일 문구. 기본은 없음."""
         return ""
 
+    def segment_done(self):
+        """True를 돌려주면 구간을 일찍 끝낸다 (예: 접촉을 감지하면 하강 중단). 기본은 끝까지 재생."""
+        return False
+
     def draw(self):
         """시각화 전용 표시."""
         draw_markers(self.viewer, self.data, self.counts, self.active_zone, self.path_points)
@@ -221,6 +225,8 @@ class Runner:
                 if problem:
                     self.emergency_stop(f"[{seg['name']}] {problem} (t={data.time:.2f}s)")
                     return "stopped", stats
+                if self.segment_done():
+                    return "ok", stats
 
             # 계획상 지금 있어야 할 손끝 위치와 실제 위치 비교
             planned = (1 - frac) * seg["tcp_path"][i] + frac * seg["tcp_path"][min(i + 1, n - 1)]

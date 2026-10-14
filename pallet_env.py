@@ -125,7 +125,9 @@ def measure_zone_heights_ground_truth(model, data):
     """
     heights = {zone: 0.0 for zone in ZONE_LAYOUT}
     for body_id in range(model.nbody):
-        if not model.body(body_id).name.startswith("box_"):
+        # 상자 = 자유 관절(free joint)을 가진 물체. 팔레트에 미리 쌓은 상자와 로봇이 옮겨 놓은 상자를 모두 센다.
+        # (로봇이 구역 위에서 들고 있는 상자도 높이로 잡히므로, 놓은 뒤에 측정해야 한다.)
+        if model.body_jntnum[body_id] != 1 or model.jnt_type[model.body_jntadr[body_id]] != mujoco.mjtJoint.mjJNT_FREE:
             continue
         x, y, z = data.xpos[body_id]
         for zone in ZONE_LAYOUT:
