@@ -69,6 +69,11 @@ def build_model(box_counts):
 
     box_counts: 구역별 처음에 쌓아 둘 상자 개수. 예) {"Z1": 0, "Z2": 1, "Z3": 2, "Z4": 3}
     """
+    return build_spec(box_counts).compile()
+
+
+def build_spec(box_counts):
+    """build_model과 같은 장면을 컴파일 전 상태(MjSpec)로 돌려준다. 다른 물체를 더 붙일 때 사용."""
     spec = mujoco.MjSpec.from_file(str(SCENE_XML))
     world = spec.worldbody
     BOX = mujoco.mjtGeom.mjGEOM_BOX
@@ -108,7 +113,7 @@ def build_model(box_counts):
             box.add_geom(type=BOX, size=[BOX_SIZE / 2] * 3, mass=BOX_MASS,
                          rgba=BOX_COLORS[layer % 2])
 
-    return spec.compile()
+    return spec
 
 
 # -------------------------------------------- 상태 측정 (나중에 센서로 교체) --

@@ -174,6 +174,22 @@ class Runner:
         print(f"\n!!! 비상 정지: {reason}")
         print("    로봇은 현재 자세를 유지합니다. 다음 동작은 실행하지 않습니다.")
 
+    # --- 다른 데모(예: pick_lift_demo.py)가 바꿔 쓸 수 있는 부분. 기본 동작은 이 데모용 ---
+    def before_step(self, seg, seg_time):
+        """매 물리 스텝 직전에 호출. 기본은 아무것도 하지 않음."""
+
+    def safety_check(self):
+        """위험한 상황이면 이유 문자열, 아니면 None. 기본: 로봇이 무엇이든 닿으면 위험."""
+        return "로봇 접촉 감지" if count_robot_contacts(self.model, self.data) > 0 else None
+
+    def status_text(self):
+        """0.5초마다 출력하는 줄 끝에 덧붙일 문구. 기본은 없음."""
+        return ""
+
+    def draw(self):
+        """시각화 전용 표시."""
+        draw_markers(self.viewer, self.data, self.counts, self.active_zone, self.path_points)
+
     def play(self, seg):
         """한 구간 재생. 반환: (상태 'ok'|'closed'|'stopped', 통계)"""
         model, data = self.model, self.data
@@ -197,11 +213,13 @@ class Runner:
                     q_dot_plan = (seg["joint_path"][i + 1] - seg["joint_path"][i]) * du_dt
                     ctrl = ctrl + self.lag_time * q_dot_plan  # 속도 피드포워드
                 data.ctrl[self.arm_act_ids] = ctrl
+                self.before_step(seg, data.time - start_time)
                 mujoco.mj_step(model, data)
 
-                # 안전 감시 1: 로봇이 무언가(팔레트·상자·바닥·자기 몸)에 닿으면 즉시 정지
-                if count_robot_contacts(model, data) > 0:
-                    self.emergency_stop(f"[{seg['name']}] 로봇 접촉 감지 (t={data.time:.2f}s)")
+                # 안전 감시 1: 위험한 접촉이 있으면 즉시 정지
+                problem = self.safety_check()
+                if problem:
+                    self.emergency_stop(f"[{seg['name']}] {problem} (t={data.time:.2f}s)")
                     return "stopped", stats
 
             # 계획상 지금 있어야 할 손끝 위치와 실제 위치 비교
@@ -222,12 +240,13 @@ class Runner:
             if self.viewer is not None:
                 if elapsed >= next_print:
                     print(f"    t={elapsed:4.1f}s 손끝 ({tip[0]:.3f}, {tip[1]:+.3f}, {tip[2]:.3f}) | "
-                          f"일정 대비 {track_mm:5.2f} mm | 경로 이탈 {offpath_mm:5.2f} mm | 방향 오차 {rot_deg:4.2f}도")
+                          f"일정 대비 {track_mm:5.2f} mm | 경로 이탈 {offpath_mm:5.2f} mm | 방향 오차 {rot_deg:4.2f}도"
+                          f"{self.status_text()}")
                     next_print += PRINT_INTERVAL
                 if not self.viewer.is_running():
                     return "closed", stats
                 with self.viewer.lock():
-                    draw_markers(self.viewer, data, self.counts, self.active_zone, self.path_points)
+                    self.draw()
                 self.viewer.sync()
                 remaining = self.steps_per_frame * model.opt.timestep - (time.time() - frame_start)
                 if remaining > 0:
