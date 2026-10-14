@@ -103,12 +103,30 @@ def solve_ik(model, ik_data, start_qpos, target):
     if error_norm >= IK_TOLERANCE:
         return False, q_arm, iters, error_norm, "반복 횟수 안에 수렴하지 못함 (도달 불가능하거나 관절 한계에 막힘)"
 
-    # 5) 계산된 자세가 바닥이나 자기 몸과 부딪히는지 확인
+    # 5) 계산된 자세가 바닥, 다른 물체, 자기 몸과 부딪히는지 확인
     mujoco.mj_fwdPosition(model, ik_data)
-    if ik_data.ncon > 0:
-        return False, q_arm, iters, error_norm, f"계산된 자세에서 충돌 {ik_data.ncon}건"
+    robot_contacts = count_robot_contacts(model, ik_data)
+    if robot_contacts > 0:
+        return False, q_arm, iters, error_norm, f"계산된 자세에서 충돌 {robot_contacts}건"
 
     return True, q_arm, iters, error_norm, "성공"
+
+
+def count_robot_contacts(model, data):
+    """로봇 부품(link0과 그 아래 모든 바디)이 관련된 접촉 수를 센다.
+
+    상자가 팔레트 위에 놓인 것처럼 로봇과 상관없는 접촉은 충돌로 세지 않는다.
+    """
+    robot_root = model.body("link0").id
+    count = 0
+    for i in range(data.ncon):
+        contact = data.contact[i]
+        body1 = model.geom_bodyid[contact.geom1]
+        body2 = model.geom_bodyid[contact.geom2]
+        # body_rootid: 그 바디가 속한 덩어리의 맨 위 바디. 로봇 부품이면 link0이 된다.
+        if robot_root in (model.body_rootid[body1], model.body_rootid[body2]):
+            count += 1
+    return count
 
 
 def gravity_compensated_ctrl(model, ik_data, q_goal, arm_act_ids):
@@ -164,7 +182,7 @@ def simulate(model, data, viewer, seconds, set_ctrl, stats):
             set_ctrl(data.time - start_time)
             mujoco.mj_step(model, data)
 
-            if data.ncon > 0:
+            if count_robot_contacts(model, data) > 0:
                 stats["collision_steps"] += 1
             q = data.qpos[model.jnt_qposadr[arm_jnt_ids]]
             if np.any(q < model.jnt_range[arm_jnt_ids, 0]) or np.any(q > model.jnt_range[arm_jnt_ids, 1]):
@@ -186,6 +204,12 @@ def run(viewer, model, data):
     colors = [COLOR_WAITING] * len(TARGETS)
     draw_targets(viewer, colors)
     results = []
+
+    if viewer is not None:
+        print("[화면 범례]")
+        print("  물리 시뮬레이션: 로봇팔 움직임 (IK 결과를 모터 목표로 주고, 모터가 중력을 이기며 따라감)")
+        print("  시각화 전용 (물리 영향 없음): 목표 구슬 노랑=대기 / 초록=이동 중 / 파랑=도달 / 빨강=실패")
+        print(f"  목표마다 {MOVE_TIME:.0f}초 동안 천천히 이동 후 {SETTLE_TIME:.0f}초 정지")
 
     for i, target in enumerate(TARGETS, start=1):
         print(f"\n[목표 {i}] 손끝 목표 = ({target[0]:.3f}, {target[1]:.3f}, {target[2]:.3f})")
