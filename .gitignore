@@ -11,6 +11,9 @@ MUJOCO_LOG.TXT
 # 기타 로그·임시 파일
 *.log
 
+# dev_run.py 실행 중 잠금 파일
+.dev_run.lock
+
 # 에디터/OS 파일
 .vscode/
 Thumbs.db
