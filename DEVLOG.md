@@ -545,3 +545,19 @@
 - "4 4 0 4": 사전 검사에서 접촉 하강 로봇-환경 5.9 mm (link5-box_Z1_3)로 거부, 운반하지 않음
 - "4 4 4 0": 사전 검사에서 접촉 하강 로봇-환경 8.5 mm (link6-box_Z2_3)로 거부, 운반하지 않음
 - 여유 거리는 Windows 기록(6.0 / 8.7 mm)과 0.1~0.2 mm 다름. 이번 값은 Linux에서 잰 것이고, 사전 검사는 운반 후 실측 자세가 아니라 계획된 자세에서 계산함
+
+## 2026-11-11 — 공통 코드를 pallet_sim 패키지로 분리
+
+### 한 일
+- 단계별 데모 파일이 서로를 라이브러리처럼 import하던 부분 중, 여러 단계가 함께 쓰는 코드를 `pallet_sim/` 패키지로 옮김. 함수 내용은 바꾸지 않음
+  - `pallet_sim/robot.py`: 모델 경로, 손끝 정의(`FINGERTIP_OFFSET`), `SAFETY_MARGIN`, 액추에이터 찾기, 손끝 FK (`fk_demo.py`에서), `ARM_JOINTS`, 위치 IK, 로봇 접촉 판정, 중력 보상 (`ik_demo.py`에서)
+  - `pallet_sim/env.py`: 기존 `pallet_env.py` + `parse_counts`, `make_scene` (`pallet_demo.py`에서)
+  - `pallet_sim/ik6d.py`: 기존 `ik6d.py`
+  - `pallet_sim/planning.py`: 이동 높이·속도, `plan_legs`, `distance_to_path` (`pallet_reach_demo.py`에서)
+- 단계별 데모 파일은 최상위에 그대로 두어 실행 명령은 바뀌지 않음. 6~8단계가 앞 단계의 경로 재생기(`Runner` → `PickRunner` → `TransportRunner` → `PlaceRunner`)를 확장하는 구조는 단계별 기록이라 그대로 둠
+- 쓰이지 않던 import 정리, `dev_run.py`가 `pallet_sim/`의 파일도 감시하도록 함
+
+### 검증
+- 정리 전후로 화면 없는 실행 13가지(IK 데모, 팔레트 `--check`·`--headless`, 6D 접근 `--check`·`--headless`·4 4 0 4, Pick & Lift, Transport 2가지, Pick & Place 4가지)의 터미널 출력 전체와 종료 코드가 글자 하나까지 같음을 확인 (Ubuntu, Python 3.13, MuJoCo 3.15.0)
+- Viewer 실행은 Windows에서 확인하지 못함
+

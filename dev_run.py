@@ -7,7 +7,7 @@
     .\\.venv\\Scripts\\python.exe dev_run.py --manual pallet_reach_demo.py          # 저장해도 재실행하지 않고 R 키로만 재실행
 
 동작:
-  - 프로젝트 폴더의 .py 파일과 models/ 아래 .xml 파일을 0.5초마다 확인한다. (dev_run.py 자신은 제외)
+  - 프로젝트 폴더와 pallet_sim/ 의 .py 파일, models/ 아래 .xml 파일을 0.5초마다 확인한다. (dev_run.py 자신은 제외)
   - 저장이 끝나고 0.8초 동안 추가 저장이 없으면 한 번만 처리한다. (여러 번 연달아 저장해도 재실행은 1번)
   - 바뀐 파이썬 파일에 문법 오류가 있으면, 실행 중인 시뮬레이션은 그대로 두고 오류만 출력한다.
   - 문제가 없으면 실행 중인 시뮬레이션을 종료하고 새 코드로 다시 실행한다.
@@ -45,6 +45,7 @@ def log(message):
 # ----------------------------------------------------------- 파일 감시 --
 def watched_files():
     files = [p for p in PROJECT_DIR.glob("*.py") if p.name != "dev_run.py"]
+    files += list((PROJECT_DIR / "pallet_sim").glob("*.py"))
     files += list((PROJECT_DIR / "models").rglob("*.xml"))
     return files
 

@@ -11,7 +11,6 @@
     .\\.venv\\Scripts\\python.exe pallet_reach_demo.py --check      # 32개 목표(대기+놓기) 6D IK 검사
 """
 
-import math
 import sys
 import time
 
@@ -19,20 +18,12 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-import ik6d
-import pallet_env as env
-from fk_demo import find_actuator_for_joint
-from ik_demo import ARM_JOINTS, count_robot_contacts, gravity_compensated_ctrl
-from pallet_demo import make_scene, parse_counts
+from pallet_sim import env, ik6d
+from pallet_sim.env import make_scene, parse_counts
+from pallet_sim.planning import (FINAL_SPEED, SAFE_Z, TRANSIT_SPEED, VERTICAL_SPEED, ZONE_ORDER,
+                                 distance_to_path, plan_legs)
+from pallet_sim.robot import ARM_JOINTS, count_robot_contacts, find_actuator_for_joint, gravity_compensated_ctrl
 
-# 이동 높이: 가장 높게 쌓인 상자(4층) 윗면보다 10cm 위에서 구역 사이를 옮겨 다닌다.
-SAFE_Z = env.PALLET_TOP_Z + env.MAX_LAYERS * env.BOX_SIZE + 0.10  # = 0.55 m
-
-# 이동 속도 [m/s]. 관찰하기 쉽게 느리게 설정.
-TRANSIT_SPEED = 0.10   # 이동 높이에서 수평 이동
-VERTICAL_SPEED = 0.06  # 이동 높이 <-> 대기 위치
-FINAL_SPEED = 0.03     # 대기 위치 <-> 놓기 목표 (가장 조심스러운 구간)
-MIN_SEGMENT_TIME = 1.0
 HOLD_TIME = 2.0        # 놓기 목표에서 멈춰 있는 시간
 CYCLE_PAUSE = 3.0      # 한 바퀴 끝나고 다시 시작하기 전 대기 시간
 
@@ -43,41 +34,9 @@ STOP_TRACKING_ERROR = 0.02      # 이동 중 계획 경로에서 2cm 이상 벗�
 CLEARANCE_WARN = 0.005          # 계획 경로가 주변 물체와 5mm보다 가까우면 경고
 
 PRINT_INTERVAL = 0.5
-ZONE_ORDER = ["Z1", "Z2", "Z3", "Z4"]
 
 
 # ------------------------------------------------------------- 경로 계획 --
-def plan_legs(model, ik_data, base_qpos, start_q, start_pos, legs):
-    """여러 직선 구간을 차례로 계획한다. legs = [(이름, 끝점 또는 None(정지), 속도 또는 정지시간)]
-
-    각 구간마다 6D IK 경로, 중력 보상 모터 목표, 재생 시간, 최소 거리를 담아 돌려준다.
-    하나라도 실패하면 (None, 실패 메시지).
-    """
-    arm_act_ids = [find_actuator_for_joint(model, n) for n in ARM_JOINTS]
-    qpos_ids = model.jnt_qposadr[[model.joint(n).id for n in ARM_JOINTS]]
-    segments = []
-    q, pos = start_q, start_pos
-    for name, end_pos, speed_or_time in legs:
-        if end_pos is None:  # 제자리 정지 구간
-            joint_path, tcp_path, duration, clearance = np.array([q]), np.array([pos]), speed_or_time, None
-        else:
-            seed = base_qpos.copy()
-            seed[qpos_ids] = q
-            ok, joint_path, tcp_path, message = ik6d.plan_line(model, ik_data, seed, pos, end_pos)
-            if not ok:
-                return None, f"[{name}] {message}"
-            safe, clearance = ik6d.check_path_clearance(model, ik_data, base_qpos, joint_path)
-            if not safe:
-                return None, f"[{name}] 계획 경로에서 로봇이 물체에 닿음"
-            duration = max(MIN_SEGMENT_TIME, np.linalg.norm(end_pos - pos) / speed_or_time)
-            q, pos = joint_path[-1], end_pos
-
-        ctrl_path = np.array([gravity_compensated_ctrl(model, ik_data, qa, arm_act_ids) for qa in joint_path])
-        segments.append({"name": name, "joint_path": joint_path, "ctrl_path": ctrl_path,
-                         "tcp_path": tcp_path, "duration": duration, "clearance": clearance})
-    return segments, "성공"
-
-
 def zone_legs(zone, counts, start_pos):
     """한 구역 방문 순서: 이동 높이로 구역 위 -> 대기 위치 -> 놓기 목표 -> 정지 -> 같은 길로 복귀."""
     place = env.next_place_target(zone, counts[zone])
@@ -91,18 +50,6 @@ def zone_legs(zone, counts, start_pos):
         (f"{zone} 대기 위치로 상승", approach, FINAL_SPEED),
         (f"{zone} 이동 높이로 상승", above, VERTICAL_SPEED),
     ], place, approach
-
-
-def distance_to_path(point, path):
-    """점에서 계획 경로(꺾은선)까지의 가장 짧은 거리. 늦게 따라오는 것과 옆으로 벗어난 것을 구분하기 위함."""
-    if len(path) == 1:
-        return float(np.linalg.norm(point - path[0]))
-    a, b = path[:-1], path[1:]
-    ab = b - a
-    length2 = np.maximum((ab * ab).sum(axis=1), 1e-12)
-    s = np.clip(((point - a) * ab).sum(axis=1) / length2, 0.0, 1.0)
-    closest = a + s[:, None] * ab
-    return float(np.min(np.linalg.norm(closest - point, axis=1)))
 
 
 # ------------------------------------------------------------- 화면 표시 --

@@ -9,7 +9,6 @@
     .\\.venv\\Scripts\\python.exe dev_run.py --manual pick_lift_demo.py   # R 키로 다시 실행
 """
 
-import math
 import sys
 import time
 
@@ -17,11 +16,9 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-import ik6d
-import pallet_env as env
-from ik_demo import ARM_JOINTS
-from pallet_reach_demo import (FINAL_SPEED, SAFE_Z, TRANSIT_SPEED, VERTICAL_SPEED, Runner,
-                               plan_legs)
+from pallet_sim import env, ik6d
+from pallet_sim.planning import FINAL_SPEED, SAFE_Z, TRANSIT_SPEED, VERTICAL_SPEED, plan_legs
+from pallet_reach_demo import Runner  # 5단계의 경로 재생기를 확장한다
 
 # ---------------------------------------------------------- 장면 설정 --
 # 공급 받침대: 팔레트(x 0.34~0.66, y -0.16~0.16) 오른쪽에 떨어뜨려 둔다.
