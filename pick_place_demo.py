@@ -230,11 +230,18 @@ def place_pose(rel_pos, rel_rot, zone, support_top):
     return box_center, tcp_for, tcp_from_box
 
 
-def plan_place_leg(runner, ik_data, name, end_pos, speed, allow_support):
-    """들고 있는 상자를 포함해 하강 구간을 계획·검사한다."""
+def plan_place_leg(runner, ik_data, name, end_pos, speed, allow_support, start=None):
+    """들고 있는 상자를 포함해 하강 구간을 계획·검사한다.
+
+    start=None이면 지금 실제 자세에서, start=(관절각, 손끝 위치)를 주면 그 자세에서 시작하는 것으로 계획한다
+    (운반 전에 놓기 구간을 미리 검사할 때 사용).
+    """
     model, data = runner.model, runner.data
-    q = data.qpos[model.jnt_qposadr[runner.arm_jnt_ids]].copy()
-    tip, _ = runner.measure()
+    if start is None:
+        q = data.qpos[model.jnt_qposadr[runner.arm_jnt_ids]].copy()
+        tip, _ = runner.measure()
+    else:
+        q, tip = start
     ik_base = data.qpos.copy()
     ik_base[runner.checker.box_adr:runner.checker.box_adr + 3] = [5.0, 5.0, 0.5]  # IK 수렴용으로만 치움
     segments, message = plan_legs(model, ik_data, ik_base, q, tip, [(name, end_pos, speed)])
@@ -250,6 +257,24 @@ def plan_place_leg(runner, ik_data, name, end_pos, speed, allow_support):
         return None, f"여유 거리 부족 ({PLACE_CLEARANCE * 1000:.0f} mm 미만): {text}"
     runner.add_payload(segments, ik_data, env.BOX_MASS)
     return segments, text
+
+
+def precheck_place_legs(runner, ik_data, route, tcp_for):
+    """운반을 시작하기 전에, 운반이 끝날 자세에서 시작하는 두 하강 구간을 미리 계획·검사한다.
+
+    놓기 구간이 여유 거리 기준에 걸리는 배치라면 상자를 운반하기 전에 거부하기 위한 것이다.
+    실제 하강 때는 운반 후 측정한 자세로 다시 계획·검사한다.
+    """
+    q_end = route["segments"][-1]["joint_path"][-1]
+    leg1, text1 = plan_place_leg(runner, ik_data, "접촉 직전까지 하강", tcp_for(PRECONTACT_GAP), DESCENT_SPEED,
+                                 False, start=(q_end, route["hover"]))
+    if leg1 is None:
+        return False, f"접촉 직전까지 하강: {text1}"
+    leg2, text2 = plan_place_leg(runner, ik_data, "접촉 하강", tcp_for(-PRESS_LIMIT), CONTACT_SPEED,
+                                 True, start=(leg1[0]["joint_path"][-1], tcp_for(PRECONTACT_GAP)))
+    if leg2 is None:
+        return False, f"접촉 하강: {text2}"
+    return True, f"접촉 직전까지 하강: {text1} / 접촉 하강: {text2}"
 
 
 def run_place(runner):
@@ -278,6 +303,13 @@ def run_place(runner):
     route, _ = plan_transport(runner, ik_data, zone, counts)
     if route is None:
         return {"success": False, "reason": "상자를 든 채 충돌 없이 갈 수 있는 경로가 없음"}
+
+    # 운반하기 전에 놓기 구간까지 미리 검사한다. 놓을 수 없는 배치면 상자를 든 채 받침대 위에서 멈춘다.
+    print(f"\n놓기 구간 사전 검사 (운반 전, 들고 있는 상자 포함, 기준 {PLACE_CLEARANCE * 1000:.0f} mm)")
+    place_ok, place_text = precheck_place_legs(runner, ik_data, route, tcp_for)
+    print(f"  {'통과' if place_ok else '거부'}: {place_text}")
+    if not place_ok:
+        return {"success": False, "reason": "놓기 구간 사전 검사에서 거부 (운반하지 않음)"}
     runner.path_points = np.concatenate([s["tcp_path"] for s in route["segments"]])
     runner.markers = [(route["hover"], env.ZONE_COLORS[zone][:3] + [0.8])]
     runner.add_payload(route["segments"], ik_data, env.BOX_MASS)
@@ -445,7 +477,7 @@ def main():
         result = run_place(runner)
         if not result["success"]:
             print(f"\n실패: {result['reason']}")
-        return
+        sys.exit(0 if result["success"] else 1)  # 화면 없이 실행할 때는 판정을 종료 코드로도 알림 (CI에서 사용)
 
     print_legend()
     with mujoco.viewer.launch_passive(model, data, show_left_ui=False, show_right_ui=False) as viewer:
