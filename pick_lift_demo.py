@@ -384,7 +384,7 @@ def main():
         result = run_pick_lift(PickRunner(model, data, None))
         if not result["success"]:
             print(f"\n실패: {result['reason']}")
-        return
+        sys.exit(0 if result["success"] else 1)  # 화면 없이 실행할 때는 판정을 종료 코드로도 알림 (CI에서 사용)
 
     print_legend()
     with mujoco.viewer.launch_passive(model, data, show_left_ui=False, show_right_ui=False) as viewer:

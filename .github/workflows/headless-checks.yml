@@ -1,0 +1,38 @@
+name: headless checks
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -r requirements.txt
+      # 각 데모는 판정이 실패하면 종료 코드 1로 끝난다.
+      - name: 6D IK + approach paths (32 targets)
+        run: python pallet_reach_demo.py --check
+      - name: Pick & Lift
+        run: python pick_lift_demo.py --headless
+      - name: Pick & Transport
+        run: python pick_transport_demo.py --headless
+      - name: Pick & Place (empty pallet Z1, Z3)
+        run: |
+          python pick_place_demo.py --headless
+          python pick_place_demo.py --headless --zone Z3
+      - name: Pick & Place (front row full, rejected before transport)
+        run: |
+          set +e
+          python pick_place_demo.py --headless 4 4 0 4 > place_4404.log
+          code=$?
+          set -e
+          cat place_4404.log
+          test "$code" -eq 1
+          grep -q "놓기 구간 사전 검사에서 거부 (운반하지 않음)" place_4404.log
+          if grep -q "Z3 위로 운반" place_4404.log; then echo "transport should not start"; exit 1; fi

@@ -399,12 +399,13 @@ def check_all_targets():
     print(f"\n6D IK + 접근 경로 검사 통과: {passed}/32 (대기·놓기 목표 기준)")
     print("※ 최소 거리는 50 mm까지만 계산합니다 (50.0 = 50 mm 이상).")
     print("※ 목표 자세와 경로만 검증한 것이며, 상자를 실제로 잡거나 운반하는 것은 검증하지 않았습니다.")
+    return passed
 
 
 def main():
     if "--check" in sys.argv:
-        check_all_targets()
-        return
+        passed = check_all_targets()
+        sys.exit(0 if passed == 32 else 1)  # 하나라도 실패하면 종료 코드 1 (CI에서 사용)
 
     counts = parse_counts(sys.argv[1:])
     model, data = make_scene(counts)
