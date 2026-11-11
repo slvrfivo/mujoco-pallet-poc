@@ -21,11 +21,10 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-import ik6d
-import pallet_env as env
-from ik_demo import ARM_JOINTS
-from pallet_demo import parse_counts
-from pallet_reach_demo import SAFE_Z, TRANSIT_SPEED, VERTICAL_SPEED, ZONE_ORDER, plan_legs
+from pallet_sim import env, ik6d
+from pallet_sim.env import parse_counts
+from pallet_sim.planning import SAFE_Z, TRANSIT_SPEED, VERTICAL_SPEED, ZONE_ORDER, plan_legs
+from pallet_sim.robot import ARM_JOINTS
 from pick_lift_demo import MAX_PENETRATION, PickRunner, build_pick_model, run_pick_lift
 
 TARGET_CLEARANCE = 0.020   # 운반 경로에서 확보하고 싶은 최소 여유 거리 [m]

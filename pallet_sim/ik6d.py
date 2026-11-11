@@ -13,8 +13,7 @@ import math
 import mujoco
 import numpy as np
 
-from fk_demo import SAFETY_MARGIN, get_fingertip_position
-from ik_demo import ARM_JOINTS, count_robot_contacts
+from .robot import ARM_JOINTS, SAFETY_MARGIN, count_robot_contacts, get_fingertip_position
 
 # 목표 그리퍼 방향 (3x3 회전행렬, 각 열 = hand의 x, y, z축이 월드에서 가리키는 방향).
 # 모델 확인 결과 hand z축 = 손가락이 뻗은 방향, hand y축 = 손가락이 벌어지는 방향.

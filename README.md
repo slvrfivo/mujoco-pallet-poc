@@ -40,11 +40,12 @@ FK/IK부터 시작해서 그리퍼 방향을 고려한 6D IK, 접촉·마찰만�
 | 1 | `run_panda.py` | Panda 모델을 불러와 Viewer에 표시 |
 | 2 | `fk_demo.py` | FK. 관절을 움직이며 손끝(TCP) 좌표 출력 |
 | 3 | `ik_demo.py` | 위치 IK (자코비안 + Damped Least Squares), 중력 보상 |
-| 4 | `pallet_env.py`, `pallet_demo.py` | 2×2 팔레트·상자 환경, 구역별 높이 측정과 다음 목표 좌표 계산 |
-| 5 | `ik6d.py`, `pallet_reach_demo.py` | 위치 + 그리퍼 방향을 맞추는 6D IK, 직선 경로 계획, 경로 충돌·여유 거리 검사 |
+| 4 | `pallet_sim/env.py`, `pallet_demo.py` | 2×2 팔레트·상자 환경, 구역별 높이 측정과 다음 목표 좌표 계산 |
+| 5 | `pallet_sim/ik6d.py`, `pallet_sim/planning.py`, `pallet_reach_demo.py` | 위치 + 그리퍼 방향을 맞추는 6D IK, 직선 경로 계획, 경로 충돌·여유 거리 검사 |
 | 6 | `pick_lift_demo.py` | 실제 그리퍼로 상자를 잡아 10 cm 들어 올리기 |
 | 7 | `pick_transport_demo.py` | 잡은 상자를 팔레트 빈 구역 위까지 운반 (손에 든 상자까지 포함한 충돌 검사) |
 | 8 | `pick_place_demo.py` | 빈 구역에 내려놓고 그리퍼를 열어 손 빼기 |
+| 공통 | `pallet_sim/` | 여러 단계가 함께 쓰는 코드 (손끝 정의·위치 IK·중력 보상, 팔레트 환경, 6D IK, 경로 계획) |
 | 도구 | `dev_run.py` | 파이썬 파일을 저장하면 시뮬레이션을 다시 실행하는 개발용 실행기 |
 
 ### 전체 동작 흐름 (`pick_place_demo.py`)
@@ -177,14 +178,17 @@ python -m venv .venv
 ```
 run_panda.py            1단계 모델 표시
 fk_demo.py              2단계 FK
-ik_demo.py              3단계 위치 IK, 중력 보상, 로봇 접촉 판정
-pallet_env.py           팔레트·상자 장면 생성, 구역 높이 측정, 목표 좌표 계산
+ik_demo.py              3단계 위치 IK 데모
 pallet_demo.py          4단계 팔레트 환경 데모
-ik6d.py                 6D IK, 직선 경로 계획, 여유 거리 검사
 pallet_reach_demo.py    5단계 6D 접근 데모, 경로 재생기(Runner)
 pick_lift_demo.py       6단계 Pick & Lift
 pick_transport_demo.py  7단계 Pick & Transport (손에 든 상자 포함 충돌 검사)
 pick_place_demo.py      8단계 Pick & Place
+pallet_sim/             여러 단계가 함께 쓰는 코드
+  robot.py              모델 경로, 손끝(TCP) 정의, FK·위치 IK, 로봇 접촉 판정, 중력 보상
+  env.py                팔레트·상자 장면 생성, 구역 높이 측정, 목표 좌표 계산, 장면·명령줄 도구
+  ik6d.py               6D IK, 직선 경로, 여유 거리 검사
+  planning.py           이동 높이·속도, 여러 구간 경로 계획(plan_legs)
 dev_run.py              개발용 자동/수동 재실행 도구
 DEVLOG.md               단계별 개발 기록 (문제·수치·실패 사례)
 requirements.txt        mujoco, numpy 버전 고정

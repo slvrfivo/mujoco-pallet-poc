@@ -17,30 +17,9 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-import pallet_env as env
-from ik_demo import count_robot_contacts, solve_ik
-
-DEFAULT_COUNTS = [0, 1, 2, 3]  # Z1, Z2, Z3, Z4
-
-
-def parse_counts(args):
-    """명령줄의 숫자 4개를 {"Z1": n1, ...} 형태로 바꾼다. 없으면 기본값."""
-    numbers = [a for a in args if not a.startswith("--")]
-    if not numbers:
-        numbers = DEFAULT_COUNTS
-    if len(numbers) != len(env.ZONE_LAYOUT):
-        raise SystemExit("구역별 상자 개수 4개를 입력하세요. 예) pallet_demo.py 0 1 2 3")
-    return dict(zip(env.ZONE_LAYOUT, (int(n) for n in numbers)))
-
-
-def make_scene(counts):
-    """장면을 만들고 로봇을 home 자세로 둔다."""
-    model = env.build_model(counts)
-    data = mujoco.MjData(model)
-    mujoco.mj_resetDataKeyframe(model, data, model.key("home").id)
-    mujoco.mj_forward(model, data)
-    return model, data
-
+from pallet_sim import env
+from pallet_sim.env import make_scene, parse_counts
+from pallet_sim.robot import count_robot_contacts, solve_ik
 
 def hand_tilt_deg(data):
     """손이 수직 아래 방향에서 몇 도 기울었는지. (0도 = 손가락이 정확히 아래를 향함)"""

@@ -12,7 +12,7 @@
 import mujoco
 import numpy as np
 
-from fk_demo import SCENE_XML
+from .robot import SCENE_XML
 
 # ------------------------------------------------------------- 크기 설정 --
 # 단위는 모두 m, kg. 좌표계: 로봇 받침(link0)이 원점, 로봇 정면이 +x, 왼쪽이 +y, 위가 +z.
@@ -168,3 +168,26 @@ def next_place_target(zone, count):
 def approach_target(place_target):
     """놓을 위치 바로 위의 대기 위치 (위에서 수직으로 내려오기 위한 점)."""
     return place_target + np.array([0.0, 0.0, APPROACH_CLEARANCE])
+
+
+# ------------------------------------------------------ 장면·명령줄 도구 --
+DEFAULT_COUNTS = [0, 1, 2, 3]  # Z1, Z2, Z3, Z4
+
+
+def parse_counts(args):
+    """명령줄의 숫자 4개를 {"Z1": n1, ...} 형태로 바꾼다. 없으면 기본값."""
+    numbers = [a for a in args if not a.startswith("--")]
+    if not numbers:
+        numbers = DEFAULT_COUNTS
+    if len(numbers) != len(ZONE_LAYOUT):
+        raise SystemExit("구역별 상자 개수 4개를 입력하세요. 예) pallet_demo.py 0 1 2 3")
+    return dict(zip(ZONE_LAYOUT, (int(n) for n in numbers)))
+
+
+def make_scene(counts):
+    """장면을 만들고 로봇을 home 자세로 둔다."""
+    model = build_model(counts)
+    data = mujoco.MjData(model)
+    mujoco.mj_resetDataKeyframe(model, data, model.key("home").id)
+    mujoco.mj_forward(model, data)
+    return model, data

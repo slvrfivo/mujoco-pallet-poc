@@ -14,7 +14,6 @@
     .\\.venv\\Scripts\\python.exe dev_run.py --manual pick_place_demo.py
 """
 
-import math
 import sys
 import time
 
@@ -22,12 +21,10 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
-import ik6d
-import pallet_env as env
-from fk_demo import FINGERTIP_OFFSET
-from ik_demo import gravity_compensated_ctrl
-from pallet_demo import parse_counts
-from pallet_reach_demo import plan_legs
+from pallet_sim import env, ik6d
+from pallet_sim.env import parse_counts
+from pallet_sim.planning import plan_legs
+from pallet_sim.robot import FINGERTIP_OFFSET, gravity_compensated_ctrl
 from pick_lift_demo import GRIP_CLOSE, GRIP_OPEN, MAX_PENETRATION, build_pick_model, plan_or_fail, run_pick_lift
 from pick_transport_demo import (CLEARANCE_RANGE, CarryChecker, TransportRunner, choose_target, fmt_mm,
                                  plan_transport)
